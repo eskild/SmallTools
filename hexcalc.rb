@@ -25,6 +25,8 @@
 #             Martin Eskildsen
 #             eskild.opensource@gmail.com
 
+require 'readline'
+
 # Variable container. A hash with name -> value pairs.
 
 class Variables
@@ -135,11 +137,8 @@ class Calculator
   end
 
   def loop
-    while true
-      $stdout.print "> "
-      $stdout.flush
+    while line = Readline.readline('> ', true)
       begin
-        line = $stdin.readline
         parse_line(line)
         print_top
       rescue
