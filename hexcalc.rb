@@ -1,4 +1,4 @@
-#!/usr/bin/ruby
+#!/bin/env ruby
 #
 #    Simple, simple, simple CLI-based Hex RPN calculator
 #
@@ -26,6 +26,8 @@
 #             eskild.opensource@gmail.com
 
 # Variable container. A hash with name -> value pairs.
+
+require 'readline'
 
 class Variables
 
@@ -135,11 +137,8 @@ class Calculator
   end
 
   def loop
-    while true
-      $stdout.print "> "
-      $stdout.flush
+    while line = Readline.readline('> ', true)
       begin
-        line = $stdin.readline
         parse_line(line)
         print_top
       rescue
