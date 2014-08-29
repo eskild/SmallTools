@@ -1,0 +1,104 @@
+#!/usr/bin/env ruby
+#
+#    "Memory" grep.
+#
+#                 -- being a part of --
+#
+#    SmallTools -- a set of small tools and utilites.
+#
+#    Copyright (C) 2011-2014 Martin Eskildsen.
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    Comments, suggestions, questions to:
+#             Martin Eskildsen
+#             eskild.opensource@gmail.com
+
+PATH = ENV['HOME'] + "/memory/"
+EDITOR = ENV['EDITOR'] || 'emacs'
+
+def usage(msg = nil)
+  $stderr.puts("ERROR: " + msg) if msg != nil
+  $stderr.puts("Usage: m [op] Entry [Text...]")
+  $stderr.puts("op: -e = invoke $EDITOR on entry; --delete = delete entry")
+  exit(1)
+end
+
+def do_it(op, entry, text = "")
+  entry = entry.gsub(/[\.\/]/, '_')
+  fname = PATH + entry + ".txt"
+  case op
+  when :edit
+    puts "Invoking editor for #{fname}..."
+    system(EDITOR + " " + fname)
+  when :show
+    if File.exists?(fname)
+      puts(IO.readlines(fname))
+    else
+      usage("No such entry file: #{fname}")
+    end
+  when :delete
+    puts "Deleting #{fname}"
+    File.unlink(fname) or usage("Can't unlink #{fname} -- maybe the entry doesn't exist?")
+  when :add
+    puts "Adding entry to #{fname}"
+    f = File.open(fname, "a") or usage("Can't create file #{fname}. Odd!")
+    if f.stat.size == 0
+      f.puts(entry)
+      f.puts("=" * entry.length)
+      f.puts
+    end
+    f.puts("    " + text)
+    f.puts
+    f.close
+    lines = IO.readlines(fname)
+    from = lines.length > 10 ? 10 : lines.length
+    puts(lines[-from..-1])
+  else
+    usage("BUG in op case")
+  end
+end
+  
+
+args = ARGV
+
+if args == []
+  puts "Entries:"
+  puts Dir[PATH + "*.txt"].map { |e| "    " + File.basename(e).gsub(/\.txt$/, '') }.sort
+else
+  case args[0]
+  when '-e'
+    args.shift
+    entry = args.shift
+    text = args.join(' ')
+    do_it(:add, entry, text) if text != ""
+    do_it(:edit, entry)
+  when '--delete'
+    args.shift
+    entry = args.shift
+    usage("Too many arguments for --delete") if args != []
+    do_it(:delete, entry)
+  when /^\-/
+    usage("Unknown option: " + args[0])
+  else
+    entry = args.shift
+    text = args.join(' ')
+    if text == ""
+      do_it(:show, entry)
+    else
+      do_it(:add, entry, text)
+    end
+  end
+
+end
