@@ -91,6 +91,11 @@ class Stack
     @s[0], @s[-1] = @s[-1], @s[0]
   end
 
+  def at(idx)
+    raise "Out of bounds" if idx < 1 || idx > size
+    @s[size - idx]
+  end
+
   def values
     @s
   end
@@ -137,7 +142,7 @@ class Calculator
   end
 
   def loop
-    while line = Readline.readline('> ', true)
+    while line = Readline.readline('hexcalc> ', true)
       begin
         parse_line(line)
         print_top
@@ -207,7 +212,7 @@ private
 
   def show_help
     puts "Reserved words and operators:"
-    puts @ops.keys.sort.join(', ')
+    puts (@ops.keys + ["@idx"]).sort.join(', ')
     puts "Variable assignment:  'varname' ="
     puts "Function declaration: [ ... ] 'funcname' ="
   end
@@ -303,6 +308,8 @@ private
     # Not an operation, then it's a number, variable, etc.
 
     case tok
+      when /^@(\d+)/                  # Stack peek
+        @s.push(@s.at($1.to_i))
       when /^[+-]?[1-9][0-9]*\.?[0-9]*[eE][+-]?[0-9]+$/    # (Decimal) with exponent: 
         @s.push((tok.to_f).to_i)      
     when /^([+-]?[1-9][0-9]*)([GMk])$/     # (Decimal) giga/mega/kilo
@@ -345,8 +352,8 @@ c = Calculator.new
 c.load(RC_FILE) if File.exists?(RC_FILE)
 
 if ARGV.length == 0 then
-  puts "Hexcalc 1.2, a Reverse Polish Notation Hex Calculator. " +
-    "(c) Martin Eskildsen 2011"
+  puts "Hexcalc 1.3, a Reverse Polish Notation Hex Calculator. " +
+    "(c) Martin Eskildsen 2011-2012"
   c.loop
 else
   ARGV.each { |a| c.parse_line(a) }
