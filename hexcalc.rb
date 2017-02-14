@@ -30,8 +30,9 @@ require 'readline'
 VERSION = "1.4"
 YEAR    = 2017
 
+#
 # Variable container. A hash with name -> value pairs.
-
+#
 class Variables
 
   attr_reader :vars
@@ -55,10 +56,9 @@ class Variables
 
 end
 
-
-
+#
 # Stack base class. Primary role is to complain if stack underflows.
-
+#
 class Stack
 
   def initialize
@@ -110,9 +110,9 @@ class Stack
 
 end
 
-
-
+#
 # The Calculator
+#
 class Calculator
 
   MAX_NESTING = 40
@@ -371,8 +371,6 @@ private
   end
 
 end
-
-
 
 #
 # Main
