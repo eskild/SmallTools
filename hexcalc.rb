@@ -1,4 +1,4 @@
-#!/bin/env ruby
+#!/usr/bin/env ruby
 #
 #    Simple, simple, simple CLI-based Hex RPN calculator
 #
@@ -6,7 +6,7 @@
 #
 #    SmallTools -- a set of small tools and utilites.
 #
-#    Copyright (C) 2011 Martin Eskildsen.
+#    Copyright (C) 2011-2017 Martin Eskildsen.
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -25,9 +25,12 @@
 #             Martin Eskildsen
 #             eskild.opensource@gmail.com
 
-# Variable container. A hash with name -> value pairs.
-
 require 'readline'
+
+VERSION = "1.4"
+YEAR    = 2017
+
+# Variable container. A hash with name -> value pairs.
 
 class Variables
 
@@ -86,9 +89,14 @@ class Stack
     @s[-1]
   end
 
-  def rotate
+  def rotate_down
     raise "Stack size < 2, cannot rotate" if @s.length < 2
-    @s[0], @s[-1] = @s[-1], @s[0]
+    @s = [@s[-1]] + @s[0..-2]
+  end
+
+  def rotate_up
+    raise "Stack size < 2, cannot rotate" if @s.length < 2
+    @s = @s[1..-1] + [@s[0]]
   end
 
   def at(idx)
@@ -117,28 +125,31 @@ class Calculator
 
     @vars = Variables.new
     @ops  = Hash.new
-    @ops['+']    = Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2+p1) }
-    @ops['-']    = Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2-p1) }
-    @ops['*']    = Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2*p1) }
-    @ops['/']    = Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2/p1) }
-    @ops['^']    = Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2^p1) }
-    @ops['|']    = Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2|p1) }
-    @ops['&']    = Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2&p1) }
-    @ops['<<']   = Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2<<p1) }
-    @ops['>>']   = Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2>>p1) }
-    @ops['**']   = Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2**p1) }
-    @ops['swap'] = Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p1); @s.push(p2) }
-    @ops['=']    = Proc.new { nm=@s.pop; v=@s.pop; @vars.assign(nm, v) }
-    @ops['[']    = Proc.new { raise "Bug" if @func != nil; @func = [] }
-    @ops['rot']  = Proc.new { @s.rotate }
-    @ops['pop']  = Proc.new { @s.pop }
-    @ops['dup']  = Proc.new { @s.push(@s.top) }
-    @ops['!']    = @ops['not'] = Proc.new { @s.push(~@s.pop) }
-    @ops['show'] = @ops['s']   = Proc.new { print_stack }
-    @ops['neg']  = @ops['chs'] = Proc.new { @s.push(-@s.pop) }
-    @ops['vars'] = Proc.new { print_vars }
-    @ops['del']  = Proc.new { @vars.delete(@s.pop) }
-    @ops['help'] = Proc.new { show_help }
+    @ops['+']    = { :desc => "Add two top values, @2 + @1",            :code => Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2+p1) } }
+    @ops['-']    = { :desc => "Subtract two top values, @2 - @1",       :code => Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2-p1) } }
+    @ops['*']    = { :desc => "Multiply two top values, @2 * @1",       :code => Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2*p1) } }
+    @ops['/']    = { :desc => "Integer divide two top values, @2 / @1", :code => Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2/p1) } }
+    @ops['^']    = { :desc => "XOR two top values, @2 XOR @1",          :code => Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2^p1) } }
+    @ops['|']    = { :desc => "OR two top values, @2 OR @1",            :code => Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2|p1) } }
+    @ops['&']    = { :desc => "AND two top values, @2 AND @1",          :code => Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2&p1) } }
+    @ops['<<']   = { :desc => "Shift left @2 by @1 bits",               :code => Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2<<p1) } }
+    @ops['>>']   = { :desc => "Shift right @2 by @1 bits",              :code => Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2>>p1) } }
+    @ops['**']   = { :desc => "Exponentiate, @2**@1",                   :code => Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p2**p1) } }
+    @ops['swap'] = { :desc => "Swap two top values",                    :code => Proc.new { p1=@s.pop; p2=@s.pop; @s.push(p1); @s.push(p2) } }
+    @ops['=']    = { :desc => "Variable assignment: 'var' = @1",        :code => Proc.new { nm=@s.pop; v=@s.pop; @vars.assign(nm, v) } }
+    @ops['[']    = { :desc => "Function creation",                      :code => Proc.new { raise "Bug" if @func != nil; @func = [] } }
+    @ops['rot']  = { :desc => "Rotate entire stack down",               :code => Proc.new { @s.rotate_down } }
+    @ops['rotu'] = { :desc => "Rotate entire stack up",                 :code => Proc.new { @s.rotate_up } }
+    @ops['pop']  = { :desc => "Remove top, @1",                         :code => Proc.new { @s.pop } }
+    @ops['dup']  = { :desc => "Duplicate top",                          :code => Proc.new { @s.push(@s.top) } }
+    @ops['!']    = @ops['not'] = { :desc => "NOT @1",                   :code => Proc.new { @s.push(~@s.pop) } }
+    @ops['to_s'] = { :desc => "Convert number @1 to string",            :code => Proc.new { @s.push(make_str(@s.pop)) } }
+    @ops['to_i'] = { :desc => "Convert string @1 to number",            :code => Proc.new { @s.push(make_num(@s.pop)) } }
+    @ops['show'] = @ops['s']   = { :desc => "Show stack",               :code => Proc.new { print_stack } }
+    @ops['neg']  = @ops['chs'] = { :desc => "Negate @1, -@1",           :code => Proc.new { @s.push(-@s.pop) } }
+    @ops['vars'] = { :desc => "Show defined variables",                 :code => Proc.new { print_vars } }
+    @ops['del']  = { :desc => "Delete variable in @1 'var'",            :code => Proc.new { @vars.delete(@s.pop) } }
+    @ops['help'] = { :desc => "Show this help",                         :code => Proc.new { show_help } }
   end
 
   def loop
@@ -212,7 +223,10 @@ private
 
   def show_help
     puts "Reserved words and operators:"
-    puts (@ops.keys + ["@idx"]).sort.join(', ')
+    @ops.keys.sort.each { |op|
+      puts "  #{op}\t#{@ops[op][:desc]}"
+    }
+    puts "  @idx\tPush stack value at index idx, e.g. @3"
     puts "Variable assignment:  'varname' ="
     puts "Function declaration: [ ... ] 'funcname' ="
   end
@@ -267,6 +281,25 @@ private
   end
 
   #
+  # Calculations/conversions
+  #
+
+  def make_str(num)
+    return num if num.kind_of?(String)
+    hexstr = sprintf("%x", num)
+    hexstr = "0" + hexstr if hexstr.length % 2 != 0
+    hexstr.scan(/../).map { |v|
+      val = v.hex
+      (val < 32 || val > 127) ? sprintf("\\x%02x", val) : val.chr
+    }.join
+  end
+
+  def make_num(str)
+    return str if str.kind_of?(Integer)
+    str.split(//).inject(0) { |acc, s| acc = (acc << 8) | s.ord }
+  end
+
+  #
   # Parsing
   #
 
@@ -301,7 +334,7 @@ private
     # If we get here, we are not defining a func. Check if it's an operation:
 
     if @ops.has_key?(tok)
-      @ops[tok].call
+      @ops[tok][:code].call
       return
     end
 
@@ -352,8 +385,8 @@ c = Calculator.new
 c.load(RC_FILE) if File.exists?(RC_FILE)
 
 if ARGV.length == 0 then
-  puts "Hexcalc 1.3, a Reverse Polish Notation Hex Calculator. " +
-    "(c) Martin Eskildsen 2011-2012"
+  puts "Hexcalc #{VERSION}, a Reverse Polish Notation Hex Calculator. " +
+    "(c) Martin Eskildsen 2011-#{YEAR}"
   c.loop
 else
   ARGV.each { |a| c.parse_line(a) }
